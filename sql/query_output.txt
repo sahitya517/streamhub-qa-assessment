@@ -1,0 +1,9 @@
+-- Scenario 1 output
+out_txn | back_txn | account_a | account_b | sent | returned | sent_at | returned_at
+1 | 2 | A | B | 1000.0 | 950.0 | 2024-03-01 10:00:00 | 2024-03-01 18:00:00
+7 | 8 | G | H | 100.0 | 109.0 | 2024-03-04 12:00:00 | 2024-03-05 11:00:00
+
+-- Scenario 2 output
+player | streak_start | streak_length
+Gill | 2024-04-01 | 4
+Kohli | 2024-03-22 | 3

@@ -1,0 +1,59 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><title>LoanLens - EMI Dashboard</title>
+<style>
+body{font-family:system-ui,sans-serif;margin:0;background:#f4f6fa;color:#1c2333}header{background:#0b5fff;color:#fff;padding:16px 24px}
+main{max-width:980px;margin:24px auto;padding:0 16px;display:grid;gap:20px}section{background:#fff;border-radius:10px;padding:20px;box-shadow:0 1px 4px #0002}
+label{display:inline-block;margin:6px 12px 6px 0}input,select{padding:6px}button{background:#0b5fff;color:#fff;border:0;padding:8px 18px;border-radius:6px;cursor:pointer}
+.cards{display:flex;gap:16px;flex-wrap:wrap}.card{flex:1;min-width:180px;background:#eef3ff;border-radius:8px;padding:12px}.card b{display:block;font-size:22px}
+table{border-collapse:collapse;width:100%}td,th{border-bottom:1px solid #ddd;padding:6px;text-align:right}#tooltip{position:fixed;background:#222;color:#fff;padding:6px 10px;border-radius:6px;display:none;font-size:13px}
+.legend span{margin-right:16px}
+</style></head><body>
+<header><h1 style="margin:0">LoanLens</h1></header>
+<main>
+<section aria-label="Calculator"><h2>Loan Calculator</h2>
+<label>Loan Amount <input id="amount" type="number" value="2500000" min="1"></label>
+<label>Interest Rate (%) <input id="rate" type="number" value="10" step="0.01" min="0.01"></label>
+<label>Tenure (Years) <input id="tenure" type="number" value="10" min="1" max="30"></label>
+<button id="calc" type="button">Calculate</button>
+<p id="error" role="alert" data-testid="error" style="color:#c00"></p></section>
+<section aria-label="Dashboard"><h2>Dashboard</h2>
+<div class="cards"><div class="card">Monthly EMI<b data-testid="emi">-</b></div>
+<div class="card">Total Interest<b data-testid="total-interest">-</b></div>
+<div class="card">Total Payment<b data-testid="total-payment">-</b></div></div></section>
+<section aria-label="Breakup"><h2>Principal vs Interest</h2>
+<svg data-testid="pie-chart" width="200" height="200" viewBox="0 0 100 100" role="img" aria-label="Payment breakup pie chart">
+<circle data-testid="pie-principal" data-value="0" cx="50" cy="50" r="40" fill="none" stroke="#0b5fff" stroke-width="18" transform="rotate(-90 50 50)"/>
+<circle data-testid="pie-interest" data-value="0" cx="50" cy="50" r="40" fill="none" stroke="#ff9f1a" stroke-width="18" transform="rotate(-90 50 50)"/></svg>
+<div class="legend"><span style="color:#0b5fff">&#9632; Principal</span><span style="color:#ff9f1a">&#9632; Interest</span></div></section>
+<section aria-label="Report"><h2>Yearly Report</h2>
+<label for="range">Show years</label><select id="range"><option value="all">All years</option><option value="5">First 5 years</option><option value="3">First 3 years</option></select>
+<svg data-testid="bar-chart" id="bars" width="100%" height="200" viewBox="0 0 600 200" preserveAspectRatio="none" role="img" aria-label="Yearly payment bar chart"></svg>
+<table aria-label="Yearly schedule"><thead><tr><th>Year</th><th>Principal</th><th>Interest</th><th>Balance</th></tr></thead><tbody></tbody></table></section>
+</main><div id="tooltip" data-testid="tooltip" role="tooltip"></div>
+<script>
+const $=s=>document.querySelector(s), fmt=n=>'\u20B9'+Math.round(n).toLocaleString('en-IN');
+let rows=[];
+function calculate(){
+  const P=+$('#amount').value, rate=+$('#rate').value, yrs=+$('#tenure').value, err=$('#error');
+  if(!(P>0&&rate>0&&yrs>=1&&yrs<=30)){err.textContent='Please enter valid positive values (tenure 1-30 years).';return;}
+  err.textContent='';
+  const r=rate/1200,n=yrs*12,emi=P*r*Math.pow(1+r,n)/(Math.pow(1+r,n)-1);
+  let bal=P;rows=[];
+  for(let y=1;y<=yrs;y++){let pr=0,it=0;for(let m=0;m<12;m++){const i=bal*r;it+=i;pr+=emi-i;bal-=emi-i;}rows.push({y,pr,it,bal:Math.max(bal,0)});}
+  const total=emi*n,interest=total-P;
+  $('[data-testid=emi]').textContent=fmt(emi);$('[data-testid=total-interest]').textContent=fmt(interest);$('[data-testid=total-payment]').textContent=fmt(total);
+  const c=2*Math.PI*40,pf=P/total,pc=$('[data-testid=pie-principal]'),ic=$('[data-testid=pie-interest]');
+  pc.dataset.value=Math.round(P);pc.setAttribute('stroke-dasharray',`${pf*c} ${c}`);
+  ic.dataset.value=Math.round(interest);ic.setAttribute('stroke-dasharray',`${(1-pf)*c} ${c}`);ic.setAttribute('stroke-dashoffset',-pf*c);
+  render();
+}
+function render(){
+  const lim=$('#range').value==='all'?rows.length:+$('#range').value, shown=rows.slice(0,lim);
+  $('tbody').innerHTML=shown.map(r=>`<tr data-testid="row"><td>${r.y}</td><td>${fmt(r.pr)}</td><td>${fmt(r.it)}</td><td>${fmt(r.bal)}</td></tr>`).join('');
+  const max=Math.max(...rows.map(r=>r.pr+r.it)),w=600/Math.max(rows.length,1),tip=$('#tooltip');
+  $('#bars').innerHTML=rows.map((r,i)=>{const h=(r.pr+r.it)/max*180;return `<rect data-testid="bar" data-year="${r.y}" data-principal="${Math.round(r.pr)}" data-interest="${Math.round(r.it)}" x="${i*w+4}" y="${190-h}" width="${w-8}" height="${h}" fill="#0b5fff"/>`}).join('');
+  $('#bars').querySelectorAll('rect').forEach(b=>{
+    b.onmouseenter=e=>{tip.textContent=`Year ${b.dataset.year}: Principal ${fmt(b.dataset.principal)}, Interest ${fmt(b.dataset.interest)}`;tip.style.display='block'};
+    b.onmousemove=e=>{tip.style.left=e.clientX+12+'px';tip.style.top=e.clientY+12+'px'};b.onmouseleave=()=>tip.style.display='none';});
+}
+$('#calc').onclick=calculate;$('#range').onchange=render;calculate();
+</script></body></html>

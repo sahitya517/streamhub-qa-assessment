@@ -1,0 +1,15 @@
+{
+  "name": "streamhub-qa-assessment",
+  "version": "1.0.0",
+  "scripts": {
+    "start": "node app/server.js",
+    "test": "cucumber-js",
+    "test:selfheal": "cucumber-js --profile selfheal",
+    "sql": "python3 sql/run_sql.py"
+  },
+  "devDependencies": {
+    "@cucumber/cucumber": "^11.0.0",
+    "@playwright/test": "^1.48.0",
+    "dotenv": "^16.4.5"
+  }
+}
